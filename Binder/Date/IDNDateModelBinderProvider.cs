@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc.ModelBinding;
 using System;
+using System.Linq;
+using System.Reflection;
 
 namespace Kodelapan.Libs.Binder.Date
 {
@@ -7,16 +9,32 @@ namespace Kodelapan.Libs.Binder.Date
     {
         public IModelBinder GetBinder(ModelBinderProviderContext context)
         {
-            if ( context == null )
+            if ( context == null ) throw new ArgumentNullException(nameof(context));
+
+            if ( !context.Metadata.IsComplexType )
             {
-                throw new ArgumentNullException(nameof(context));
+                if(context.Metadata.ModelType == typeof(DateTime) )
+                {
+                    try
+                    {
+                        // Look for scrubber attributes
+                        var propName = context.Metadata.PropertyName;
+                        var propInfo = context.Metadata.ContainerType.GetProperty(propName);
+
+                        // Only one scrubber attribute can be applied to each property
+                        var attribute = propInfo.GetCustomAttributes(typeof(IDNDateScrubberAttribute), false).FirstOrDefault();
+                        if ( attribute != null ) return new IDNDateModelBinder(context.Metadata.ModelType, attribute as IScrubberAttribute);
+                    }
+                    catch(Exception ex )
+                    {
+                        return null;
+                    }
+                   
+                }
+                
             }
-            if(context.Metadata.ModelType != typeof(DateTime) )
-            {
-                return null;
-            }
-            
-            return new IDNDateModelBinder();
+
+            return null;
         }
     }
 }
